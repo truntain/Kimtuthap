@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Top-down Golden Pyramid</title>
+    <style>body { margin: 0; overflow: hidden; background-color: #000; }</style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 50, 400);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+        
+        // --- THAY ĐỔI GÓC NHÌN TẠI ĐÂY ---
+        // Nâng cao trục Y (80) để nhìn từ trên cao xuống
+        camera.position.set(70, 80, 100); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 0.8; 
+        document.body.appendChild(renderer.domElement);
+
+        // Mặt đất
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(1000, 1000),
+            new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 1 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Kim tự tháp khổng lồ rõ góc cạnh
+        const pyramidHeight = 45;
+        const baseSide = (230.3 / 146.6) * pyramidHeight;
+        const radiusAtBase = baseSide / Math.sqrt(2);
+
+        const pyramidGeometry = new THREE.ConeGeometry(radiusAtBase, pyramidHeight, 4);
+        const pyramidMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFF8C00, // Vàng cam đậm
+            roughness: 0.9,
+            flatShading: true // Giúp thấy rõ các cạnh mặt
+        });
+
+        const pyramid = new THREE.Mesh(pyramidGeometry, pyramidMaterial);
+        pyramid.position.y = pyramidHeight / 2;
+        pyramid.castShadow = true;
+        pyramid.receiveShadow = true;
+        scene.add(pyramid);
+
+        // Ánh sáng tạo khối
+        const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+        scene.add(ambient);
+
+        const sun = new THREE.DirectionalLight(0xfff5e1, 1.2);
+        sun.position.set(80, 100, 40);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.camera.left = -100; sun.shadow.camera.right = 100;
+        sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
+        scene.add(sun);
+
+        // --- ĐIỂM NHÌN THẤP XUỐNG CHÂN ĐẾ ---
+        camera.lookAt(0, 5, 0); 
+
+        function animate() {
+            requestAnimationFrame(animate);
+            pyramid.rotation.y += 0.002;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener("resize", () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
