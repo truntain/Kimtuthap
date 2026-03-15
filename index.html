@@ -14,11 +14,12 @@
     <script>
         // --- THIẾT LẬP CẢNH VÀ CAMERA ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xFFFFFF); // Nền trắng như bức tường trong ảnh
+        scene.background = new THREE.Color(0xFFFFFF); 
         scene.fog = new THREE.Fog(0xFFFFFF, 50, 400);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(20, 15, 30); // Góc nhìn từ trên cao chéo xuống
+        // Lùi camera ra xa một chút và dịch sang trái để nhìn rõ toàn cảnh
+        camera.position.set(0, 30, 50); 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -32,7 +33,8 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        controls.target.set(0, 5, 0); 
+        // Tập trung camera vào vị trí giữa đội hình
+        controls.target.set(-10, 5, 0); 
 
         // --- ÁNH SÁNG ---
         const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -76,25 +78,23 @@
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // --- KIM TỰ THÁP VỚI HỌA TIẾT GẠCH ---
+        // --- HỌA TIẾT KIM TỰ THÁP ---
         function createBrickTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = 512;
             const context = canvas.getContext('2d');
-            context.fillStyle = '#FFB84D'; // Màu cam vàng của bìa cứng
+            context.fillStyle = '#FFB84D'; 
             context.fillRect(0, 0, 512, 512);
-            context.strokeStyle = '#D96600'; // Màu viền gạch
+            context.strokeStyle = '#D96600'; 
             context.lineWidth = 2.5;
             
-            // Vẽ các đường gạch ngang
             for(let y = 0; y <= 512; y += 32) {
                 context.beginPath();
                 context.moveTo(0, y);
                 context.lineTo(512, y);
                 context.stroke();
             }
-            // Vẽ các đường gạch dọc so le
             for(let y = 0; y < 512; y += 32) {
                 let offsetX = (y / 32) % 2 === 0 ? 0 : 32;
                 for(let x = offsetX; x <= 512; x += 64) {
@@ -112,24 +112,31 @@
         brickTexture.wrapT = THREE.RepeatWrapping;
         brickTexture.repeat.set(2, 2);
 
-        const pyramidHeight = 8;
-        const baseSide = (230.3 / 146.6) * pyramidHeight;
-        const radiusAtBase = baseSide / Math.sqrt(2);
-
-        const pyramidGeometry = new THREE.ConeGeometry(radiusAtBase, pyramidHeight, 4);
         const pyramidMaterial = new THREE.MeshStandardMaterial({
             map: brickTexture, 
             roughness: 0.9,
             flatShading: true 
         });
 
-        const pyramid = new THREE.Mesh(pyramidGeometry, pyramidMaterial);
-        pyramid.position.set(0, pyramidHeight / 2, 0);
-        // Xoay kim tự tháp 45 độ để mặt phẳng đối diện camera
-        pyramid.rotation.y = Math.PI / 4; 
-        pyramid.castShadow = true;
-        pyramid.receiveShadow = true;
-        scene.add(pyramid);
+        function createPyramid(x, z, scale) {
+            const height = 8 * scale;
+            const baseSide = (230.3 / 146.6) * height;
+            const radius = baseSide / Math.sqrt(2);
+
+            const geometry = new THREE.ConeGeometry(radius, height, 4);
+            const mesh = new THREE.Mesh(geometry, pyramidMaterial);
+            mesh.position.set(x, height / 2, z);
+            mesh.rotation.y = Math.PI / 4; 
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            return mesh;
+        }
+
+        // Tạo 3 Kim tự tháp (To, Vừa, Nhỏ) xếp thành 1 hàng ngang trên trục Z = -4
+        createPyramid(-16, -4, 1.5); // Kim tự tháp To bên trái
+        createPyramid(2, -4, 1.0);   // Kim tự tháp Vừa ở giữa
+        createPyramid(15, -4, 0.7);  // Kim tự tháp Nhỏ bên phải
 
         // --- NHÂN SƯ BẰNG BÌA CỨNG ---
         const sphinxGroup = new THREE.Group();
@@ -162,7 +169,7 @@
             const context = canvas.getContext('2d');
             context.fillStyle = '#FFFFFF';
             context.fillRect(0, 0, 256, 256);
-            context.fillStyle = '#1A365D'; // Màu xanh đen đậm
+            context.fillStyle = '#1A365D'; 
             for (let i = 0; i < 256; i += 32) {
                 context.fillRect(i, 0, 16, 256);
             }
@@ -174,7 +181,7 @@
         const nemesMat = new THREE.MeshStandardMaterial({ map: nemesTexture });
         const headNemes = new THREE.Mesh(nemesGeo, nemesMat);
         headNemes.position.set(0, 3.25, 3);
-        headNemes.rotation.x = Math.PI / 2; // Nằm ngang
+        headNemes.rotation.x = Math.PI / 2; 
         headNemes.rotation.z = Math.PI / 2;
         headNemes.castShadow = true;
         sphinxGroup.add(headNemes);
@@ -194,9 +201,12 @@
 
         scene.add(sphinxGroup);
 
-        // Sắp xếp Nhân sư nằm cạnh Kim tự tháp
-        sphinxGroup.position.set(12, 0, 0); 
-        sphinxGroup.rotation.y = -Math.PI / 2; 
+        // --- SẮP XẾP LẠI VỊ TRÍ NHÂN SƯ ---
+        // Đặt nhân sư ở bên trái cùng (X = -32), ngang hàng với kim tự tháp (Z = -4)
+        sphinxGroup.position.set(-32, 0, -4); 
+        
+        // Góc xoay Y = 0 để mặt nhân sư hướng thẳng về phía camera (vuông góc với hàng kim tự tháp)
+        sphinxGroup.rotation.y = 0; 
 
         // --- ANIMATION LOOP ---
         function animate() {
