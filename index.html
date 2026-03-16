@@ -10,7 +10,6 @@
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
     
     <script>
         // --- THIẾT LẬP CẢNH VÀ CAMERA ---
@@ -19,7 +18,6 @@
         scene.fog = new THREE.Fog(0xFFFFFF, 50, 400);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-        // Lùi camera ra xa một chút và dịch sang trái để nhìn rõ toàn cảnh
         camera.position.set(0, 30, 50); 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -34,7 +32,6 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        // Tập trung camera vào vị trí giữa đội hình
         controls.target.set(-10, 5, 0); 
 
         // --- ÁNH SÁNG ---
@@ -131,13 +128,84 @@
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
-            return mesh;
+            return { mesh, height, baseSide }; // Trả về thêm thông số để dán chữ
         }
 
-        // Tạo 3 Kim tự tháp (To, Vừa, Nhỏ) xếp thành 1 hàng ngang trên trục Z = -4
-        createPyramid(-16, -4, 1.5); // Kim tự tháp To bên trái
-        createPyramid(2, -4, 1.0);   // Kim tự tháp Vừa ở giữa
-        createPyramid(15, -4, 0.7);  // Kim tự tháp Nhỏ bên phải
+        // Tạo 3 Kim tự tháp
+        const pyramidBig = createPyramid(-16, -4, 1.5); 
+        createPyramid(2, -4, 1.0);   
+        createPyramid(15, -4, 0.7);  
+
+        // --- TẠO CHỮ NỔI TIẾNG VIỆT TRÊN KIM TỰ THÁP ---
+        function createEmbossedText(text) {
+            // Dùng Canvas để vẽ chữ hỗ trợ tiếng Việt
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            ctx.clearRect(0, 0, 1024, 512);
+            ctx.font = 'bold 160px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const lines = text.split('\n');
+
+            // Đổ bóng để tạo cảm giác chìm nổi 3D
+            ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+            ctx.shadowOffsetX = 8;
+            ctx.shadowOffsetY = 8;
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#CC0000'; // Đỏ tươi rất nổi bật
+
+            ctx.fillText(lines[0], 512, 170);
+            if(lines.length > 1) ctx.fillText(lines[1], 512, 360);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const materialFront = new THREE.MeshStandardMaterial({
+                map: texture,
+                transparent: true,
+                alphaTest: 0.2, // Cắt phần viền trong suốt
+                side: THREE.DoubleSide
+            });
+
+            // Tạo độ dày bằng cách nhân bản nhiều lớp mỏng
+            const group = new THREE.Group();
+            const layers = 10; 
+            const thickness = 0.5;
+
+            for(let i = 0; i < layers; i++) {
+                let mat = materialFront;
+                if(i < layers - 1) {
+                    mat = materialFront.clone();
+                    mat.color.setHex(0x550000); // Lớp dưới màu đỏ đen để tạo chiều sâu
+                }
+                const mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), mat);
+                mesh.position.z = (i / layers) * thickness;
+                group.add(mesh);
+            }
+            return group;
+        }
+
+        const text3D = createEmbossedText("Đức Thắng\n11A6");
+        
+        // Toán học để ốp chữ dính chặt lên mặt kim tự tháp lớn nhất
+        const pyHeight = pyramidBig.height; // 12
+        const pyBaseHalf = pyramidBig.baseSide / 2; // ~9.425
+        
+        const textY = 4.5; // Chiều cao đặt chữ (từ mặt đất lên)
+        // Tính toán tọa độ Z mặt dốc tại vị trí textY
+        const faceZOffset = pyBaseHalf * ((pyHeight - textY) / pyHeight); 
+        const textZ = -4 + faceZOffset;
+
+        // Vị trí: X trùng tâm kim tự tháp to, Y giữa mặt phẳng, Z tính lồi ra chút
+        text3D.position.set(-16, textY, textZ + 0.1); 
+        
+        // Tính toán góc nghiêng tự động để chữ ngả lưng song song với mặt dốc
+        const slopeAngle = Math.atan2(pyBaseHalf, pyHeight);
+        text3D.rotation.x = -slopeAngle; 
+
+        scene.add(text3D);
 
         // --- NHÂN SƯ BẰNG BÌA CỨNG ---
         const sphinxGroup = new THREE.Group();
@@ -202,11 +270,8 @@
 
         scene.add(sphinxGroup);
 
-        // --- SẮP XẾP LẠI VỊ TRÍ NHÂN SƯ ---
-        // Đặt nhân sư ở bên trái cùng (X = -32), ngang hàng với kim tự tháp (Z = -4)
+        // Vị trí nhân sư
         sphinxGroup.position.set(-32, 0, -4); 
-        
-        // Góc xoay Y = 0 để mặt nhân sư hướng thẳng về phía camera (vuông góc với hàng kim tự tháp)
         sphinxGroup.rotation.y = 0; 
 
         // --- ANIMATION LOOP ---
